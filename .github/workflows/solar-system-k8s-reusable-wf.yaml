@@ -291,7 +291,7 @@ jobs:
   dev-integration-testing:
       name: Dev Integration Testing
       needs: dev-deploy
-      # if: contains(github.ref, 'feature/')   ### In my opinion it doesn’t make sense because this step needs on dev-deploy where we have the same condition
+      if: contains(github.ref, 'feature/')   ### In my opinion it doesn’t make sense because this step needs on dev-deploy where we have the same condition
       runs-on: ubuntu-latest
       steps:
         - name: Test '/live' Endpoint
@@ -306,7 +306,7 @@ jobs:
   prod-deploy:
     #needs: dev-integration-testing   ### added
     needs: containerization   ### this steps depends on containerization
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: 
       name: production     ### edited
