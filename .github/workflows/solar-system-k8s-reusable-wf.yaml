@@ -1,7 +1,7 @@
 name: Deployment in k8s Reusable WF
 
 on:
-  # workflow_dispatch:
+  workflow_dispatch:
   push:
      branches:
        - master
