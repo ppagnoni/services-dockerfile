@@ -1,0 +1,402 @@
+name: Deployment in k8s Reusable WF
+
+on:
+  workflow_dispatch:
+  push:
+     branches:
+       - main
+
+env:
+  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
+  MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
+  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+
+jobs:
+  unit-testing:
+    name: Unit Testing
+    strategy:
+      matrix:
+        nodejs_version: [20] #[19, 20]
+        operating_system: [ubuntu-latest] #, macos-latest]
+        # exclude:
+        #   - nodejs_version: 18
+        #     operating_system: macos-latest
+    runs-on: ${{ matrix.operating_system }}
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v5
+
+    - name: Setup NodeJS Version ${{ matrix.nodejs_version }} on ${{ matrix.operating_system }}
+      uses: actions/setup-node@v5   
+      with:                         
+        node-version: ${{ matrix.nodejs_version }}
+
+    # - name: Get npm cache directory
+    #   id: npm-cache-dir
+    #   shell: bash
+    #   run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+    # - name: Cache NPM dependency
+    #   uses: actions/cache@v4
+    #   with:
+    #     path: |
+    #       # path where the dependedncy are generally added
+    #       # in our case all the dependencies are downloaded and store din "node_modules" dir
+    #       # node_modules
+    #       # https://github.com/actions/cache/blob/main/examples.md#bash-shell
+    #       ${{ steps.npm-cache-dir.outputs.dir }}
+    #     ### every time the key changes we've to invalidate the cache and create a new key/path pair
+    #     key: ${{ matrix.operating_system }}-node-module-${{ hashFiles('package-lock.json') }}  
+    #     # restore-keys: |
+    #     #   ${{ matrix.operating_system }}-node-module-
+        
+    - name: Install Dependencies
+      run: |
+        npm install
+        
+    - name: Unit Testing
+      id: nodejs-unit-testing
+      run: |
+        npm test
+        # mv test-results.xml test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml
+      
+    # - name: Archive Test Result
+    #   if: always()
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: Mocha-Test-Result-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}
+    #     path: test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml
+
+  code-coverage:
+    name: Code Coverage
+    continue-on-error: true
+    strategy:
+      matrix:
+        nodejs_version: [20] #[19, 20] #[18, 19, 20]
+        operating_system: [ubuntu-latest] #, macos-latest]
+        # exclude:
+        #   - nodejs_version: 18
+        #     operating_system: macos-latest
+    runs-on: ${{ matrix.operating_system }}      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    - name: Setup NodeJS Version ${{ matrix.nodejs_version }} on ${{ matrix.operating_system }}
+      uses: actions/setup-node@v5
+      with:
+        node-version: ${{ matrix.nodejs_version }}
+
+    # - name: Get npm cache directory
+    #   id: npm-cache-dir
+    #   shell: bash
+    #   run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+
+    # - name: Cache NPM dependency
+    #   uses: actions/cache@v4
+    #   with:
+    #     path: |
+    #       # path where the dependedncy are generally added
+    #       # in our case all the dependencies are downloaded and store din "node_modules" dir
+    #       # node_modules
+    #       # https://github.com/actions/cache/blob/main/examples.md#bash-shell
+    #       ${{ steps.npm-cache-dir.outputs.dir }}
+    #     ### every time the key changes it invalidates the cache and it creates a new key/path pair
+    #     key: ${{ matrix.operating_system }}-node-module-${{ hashFiles('package-lock.json') }}  
+    #     # restore-keys: |
+    #     #   ${{ matrix.operating_system }}-node-module-            
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run coverage
+      id: run_coverage
+      continue-on-error: true
+      run: |
+        # COVERAGE_DIR="${{ matrix.operating_system }}-node-${{ matrix.nodejs_version }}"
+        # echo "coverage_dir=$COVERAGE_DIR" >> $GITHUB_OUTPUT
+        # # echo "Coverage directory: $COVERAGE_DIR"
+        # npx nyc --reporter=lcov --report-dir="$COVERAGE_DIR" npm test
+        
+        # # doesn't work because 'npm run coverage' fails with exit 1 and doesn't run the code below!
+        # # tar -cvzf coverage.tar.gz coverage
+        # # ls -la
+        npm test
+        
+    # - name: Compress coverage directory
+    #   run: |
+    #     # echo "Coverage directory: ${{ steps.run_coverage.outputs.coverage_dir }}"
+    #     tar -cvzf ${{ steps.run_coverage.outputs.coverage_dir }}.tar.gz ${{ steps.run_coverage.outputs.coverage_dir }}
+    #     ls -la
+
+    # - name: Archive coverage report
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: Code-Coverage-Result-${{ steps.run_coverage.outputs.coverage_dir }}
+    #     path: ${{ steps.run_coverage.outputs.coverage_dir }}.tar.gz
+    #     retention-days: 5
+
+  containerization:
+    name: Containerization
+    needs: [unit-testing, code-coverage]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v5
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ vars.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    # Prepare QEMU for multi-arch builds
+    - name: Set up QEMU emulator
+      uses: docker/setup-qemu-action@v3
+
+    # Enable Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker Image for Testing
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        push: false   ### false because we want to test the image before to push it!
+        tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}   
+
+    # sometimes is useful in a pipeline test the docker image!
+    - name: Docker Image Test
+      run: |
+        docker images
+        docker run --name solar-system-app -d \
+            -p 3000:3000 \
+            -e MONGO_URI=$MONGO_URI \
+            -e MONGO_USERNAME=$MONGO_USERNAME \
+            -e MONGO_PASSWORD=$MONGO_PASSWORD \
+            ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+        
+        export IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
+        echo $IP
+
+        echo "docker ps -a"
+        docker ps -a
+
+        # see in the app.js the endpoint "/live" it returns {"status": "live"}
+        echo 'Testing Image URL using wget (localhost)'
+        wget -q -O - 127.0.0.1:3000/live | grep live
+        echo 'Testing Image URL using wget ($IP)'
+        wget -q -O - $IP:3000/live | grep live
+
+    - name: Push Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        # in my opinion is not a good idea rebuild the image
+        # if we passed the previoust test we've to push the same image we tested!!!
+        context: .
+        push: true
+        tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+
+    # # instead the previous step we can run the one below, whithout rebuild the image!
+    # - name: Push Docker Image
+    #   run: |
+    #     docker push ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}    
+
+  dev-deploy:
+    needs: containerization
+    # if: contains(github.ref, 'feature/')
+    runs-on: ubuntu-latest
+    environment: 
+      name: development
+      # if the job deploy somethin the URL is the endpoint of the application
+      url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install kubectl CLI
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.32.0'
+
+      # - name: Configure kubeconfig context
+      #   uses: azure/k8s-set-context@v3
+      #   with:
+      #     method: kubeconfig
+      #     kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Print kubeconfig secret
+        run: |
+          echo "Print kubeconfig secret --->${{ secrets.KUBECONFIG }}<--- "
+
+      # - name: Fetch Kubernetes Cluster Details
+      #   run: |
+      #     kubectl version --short
+      #     echo "------------------------------------------"
+      #     kubectl get nodes
+
+      - name: Save Nginx Ingress IP
+        id: ingress
+        run: |
+          # echo "INGRESS_IP=$(kubectl -n ingress-nginx get svc ingress-nginx-controller \
+          #   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')" >> $GITHUB_ENV
+          echo "INGRESS_IP='ingres.url" >> $GITHUB_ENV
+
+      - name: Replace tokens in manifests
+        uses: cschleiden/replace-tokens@v1
+        with:
+          tokenPrefix: '{_'
+          tokenSuffix: '_}'
+          files: kubernetes/development/*.yaml   ### apply in all yaml files!
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}   ### define the proper vars!
+          REPLICAS: ${{ vars.REPLICAS }}
+          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+          INGRESS_IP: ${{ env.INGRESS_IP }}   ### look at how we define this var above!
+
+      - name: Verify replaced manifests
+        run: cat kubernetes/development/*.yaml
+
+      - name: Create MongoDB Secret
+        run: |
+          # kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
+          #   --from-literal=MONGO_URI=${{ env.MONGO_URI }} \
+          #   --from-literal=MONGO_USERNAME=${{ env.MONGO_USERNAME }} \
+          #   --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
+          #   --save-config \
+          #   --dry-run=client \
+          #   -o yaml | kubectl apply -f -
+
+          echo "-namespace: ${{ vars.NAMESPACE }}\n-mongo uri: ${{ env.MONGO_URI }}\n-mongo username: ${{ env.MONGO_USERNAME }}\n-mongo pwd: ${{ secrets.MONGO_PASSWORD }}\n"
+
+      # - name: Deploy to Dev Environment
+      #   run: |
+      #     kubectl apply -f kubernetes/development     ### deploy everything in dev dir
+      
+      - name: Set App Ingress Host URL
+        id: set-ingress-host-address
+        run: |
+          # HOST=$(kubectl -n ${{ vars.NAMESPACE }} \
+          #   get ingress -o jsonpath='{.items[0].spec.tls[0].hosts[0]}')
+          # echo "APP_INGRESS_URL=$HOST" >> "$GITHUB_OUTPUT"
+
+          echo "APP_INGRESS_URL=var_for_host_${{ vars.NAMESPACE }}" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
+
+  # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
+  dev-integration-testing:
+      name: Dev Integration Testing
+      needs: dev-deploy
+      # if: contains(github.ref, 'feature/')   ### In my opinion it doesn’t make sense because this step needs on dev-deploy where we have the same condition
+      runs-on: ubuntu-latest
+      steps:
+        - name: Test '/live' Endpoint
+          env:
+            URL: ${{ needs.dev-deploy.outputs.APP_INGRESS_URL }}
+          run: |
+            # echo "Testing endpoint: https://$URL/live"
+            # curl https://$URL/live -s -k | jq -r .status | grep -iq live
+            echo $URL
+
+  ### new code for production env
+  prod-deploy:
+    #needs: dev-integration-testing   ### added
+    needs: containerization   ### this steps depends on containerization
+    # if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: 
+      name: production     ### edited
+      # if the job deploy somethin the URL is the endpoint of the application
+      url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install kubectl CLI
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.32.0'
+
+      # - name: Configure kubeconfig context
+      #   uses: azure/k8s-set-context@v3
+      #   with:
+      #     method: kubeconfig
+      #     kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Print kubeconfig secret
+        run: |
+          echo "Print kubeconfig secret --->${{ secrets.KUBECONFIG }}<--- "
+
+      # - name: Fetch Kubernetes Cluster Details
+      #   run: |
+      #     kubectl version --short
+      #     echo "------------------------------------------"
+      #     kubectl get nodes
+
+      - name: Save Nginx Ingress IP
+        id: ingress
+        run: |
+          echo "INGRESS_IP=$(kubectl -n ingress-nginx get svc ingress-nginx-controller \
+            -o jsonpath='{.status.loadBalancer.ingress[0].ip}')" >> $GITHUB_ENV
+
+      - name: Replace tokens in manifests
+        uses: cschleiden/replace-tokens@v1
+        with:
+          tokenPrefix: '{_'
+          tokenSuffix: '_}'
+          files: kubernetes/production/*.yaml   ### apply in all yaml files! ### edited for production
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}   ### define the proper vars!
+          REPLICAS: ${{ vars.REPLICAS }}
+          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+          INGRESS_IP: ${{ env.INGRESS_IP }}   ### look at how we define this var above!
+
+      - name: Verify replaced manifests
+        run: cat kubernetes/production/*.yaml   ### edited for production
+
+      - name: Create MongoDB Secret
+        run: |
+          # kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
+          #   --from-literal=MONGO_URI=${{ env.MONGO_URI }} \
+          #   --from-literal=MONGO_USERNAME=${{ env.MONGO_USERNAME }} \
+          #   --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
+          #   --save-config \
+          #   --dry-run=client \
+          #   -o yaml | kubectl apply -f -
+
+          echo "-namespace: ${{ vars.NAMESPACE }}\n-mongo uri: ${{ env.MONGO_URI }}\n-mongo username: ${{ env.MONGO_USERNAME }}\n-mongo pwd: ${{ secrets.MONGO_PASSWORD }}\n"
+
+      # - name: Deploy to Prod Environment   ### edited for production
+      #   run: |
+      #     kubectl apply -f kubernetes/produciton     ### deploy everything in prod dir   ### edited for production
+      
+      - name: Set App Ingress Host URL
+        id: set-ingress-host-address
+        run: |
+          # HOST=$(kubectl -n ${{ vars.NAMESPACE }} \
+          #   get ingress -o jsonpath='{.items[0].spec.tls[0].hosts[0]}')
+          # echo "APP_INGRESS_URL=$HOST" >> "$GITHUB_OUTPUT"
+
+          echo "APP_INGRESS_URL=var_for_host_${{ vars.NAMESPACE }}" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
+
+  # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
+  prod-integration-testing:
+    name: Prod Integration Testing   ### edited for production
+    needs: prod-deploy   ### edited for production
+    # if: github.ref == 'refs/heads/main'   ### In my opinion it doesn’t make sense because this step needs on prod-deploy where we have the same condition
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test '/live' Endpoint
+        env:
+          URL: ${{ needs.prod-deploy.outputs.APP_INGRESS_URL }}   ### edited for production
+        run: |
+          # echo "Testing endpoint: https://$URL/live"
+          # curl https://$URL/live -s -k | jq -r .status | grep -iq live
+          echo $URL
