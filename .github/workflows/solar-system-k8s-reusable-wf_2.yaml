@@ -1,6 +1,6 @@
-# This file is relaated to the lessons "Step 1 - Configure new Reusable Workflow"
+# This file is relaated to the lessons "Step 2 - Configure new Reusable Workflow"
 
-name: Deployment in k8s Reusable WF_1
+name: Deployment in k8s Reusable WF_2
 
 on:
   workflow_dispatch:
@@ -139,59 +139,10 @@ jobs:
     needs: containerization
     if: contains(github.ref, 'feature/')
     uses: ./.github/workflows/solar-system-k8s-reuse-deploy-wf_1.yaml
+    secrets: # I don't use inherit here!
+      k8s-config: ${{ secrets.KUBECONFIG }}
+      mongo-db-pwd: ${{ secrets.MONGO_PASSWORD }}
     
-
-    ### move the job to reuse-deploy-wf_1.yaml see (*a*) in that file
-    # runs-on: ubuntu-latest
-    # environment: 
-    #   name: development
-    #   # if the job deploy somethin the URL is the endpoint of the application
-    #   url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
-    # steps:
-    #   - name: Checkout Repo
-    #     uses: actions/checkout@v4
-
-    #   - name: Install kubectl CLI
-    #     uses: azure/setup-kubectl@v4
-    #     with:
-    #       version: 'v1.32.0'
-
-    #   - name: Print kubeconfig secret
-    #     run: |
-    #       echo "Print kubeconfig secret --->${{ secrets.KUBECONFIG }}<--- "
-
-    #   - name: Save Nginx Ingress IP
-    #     id: ingress
-    #     run: |
-    #       echo "INGRESS_IP=ingres.url" >> $GITHUB_ENV
-
-    #   - name: Replace tokens in manifests
-    #     uses: cschleiden/replace-tokens@v1
-    #     with:
-    #       tokenPrefix: '_{_'
-    #       tokenSuffix: '_}_'
-    #       files: kubernetes/development/*.yaml   ### apply in all yaml files!
-    #     env:
-    #       NAMESPACE: ${{ vars.NAMESPACE }}   ### define the proper vars!
-    #       REPLICAS: ${{ vars.REPLICAS }}
-    #       IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
-    #       INGRESS_IP: ${{ env.INGRESS_IP }}   ### look at how we define this var above!
-
-    #   - name: Verify replaced manifests
-    #     run: cat kubernetes/development/*.yaml
-
-    #   - name: Create MongoDB Secret
-    #     run: |
-    #       echo "-namespace: ${{ vars.NAMESPACE }}\n-mongo uri: ${{ env.MONGO_URI }}\n-mongo username: ${{ env.MONGO_USERNAME }}\n-mongo pwd: ${{ secrets.MONGO_PASSWORD }}\n"
-      
-    #   - name: Set App Ingress Host URL
-    #     id: set-ingress-host-address
-    #     run: |
-    #       echo "APP_INGRESS_URL=var_for_host_${{ vars.NAMESPACE }}" >> "$GITHUB_OUTPUT"
-
-    # outputs:
-    #   APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
-
   # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
   dev-integration-testing:
       name: Dev Integration Testing
@@ -210,56 +161,6 @@ jobs:
     needs: containerization   ### this steps depends on containerization
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/solar-system-k8s-reuse-deploy-wf_1.yaml
-
-    ### move the job to reuse-deploy-wf_1.yaml see (*b*) in that file
-    # runs-on: ubuntu-latest
-    # environment: 
-    #   name: production     ### edited
-    #   # if the job deploy somethin the URL is the endpoint of the application
-    #   url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
-    # steps:
-    #   - name: Checkout Repo
-    #     uses: actions/checkout@v4
-
-    #   - name: Install kubectl CLI
-    #     uses: azure/setup-kubectl@v4
-    #     with:
-    #       version: 'v1.32.0'
-
-    #   - name: Print kubeconfig secret
-    #     run: |
-    #       echo "Print kubeconfig secret --->${{ secrets.KUBECONFIG }}<--- "
-
-    #   - name: Save Nginx Ingress IP
-    #     id: ingress
-    #     run: |
-    #       echo "INGRESS_IP=ingres.url" >> $GITHUB_ENV  
-
-    #   - name: Replace tokens in manifests
-    #     uses: cschleiden/replace-tokens@v1
-    #     with:
-    #       tokenPrefix: '_{_'
-    #       tokenSuffix: '_}_'
-    #       files: kubernetes/production/*.yaml   ### apply in all yaml files! ### edited for production
-    #     env:
-    #       NAMESPACE: ${{ vars.NAMESPACE }}   ### define the proper vars!
-    #       REPLICAS: ${{ vars.REPLICAS }}
-    #       IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
-    #       INGRESS_IP: ${{ env.INGRESS_IP }}   ### look at how we define this var above!
-
-    #   - name: Verify replaced manifests
-    #     run: cat kubernetes/production/*.yaml   ### edited for production
-
-    #   - name: Create MongoDB Secret
-    #     run: |
-    #       echo "-namespace: ${{ vars.NAMESPACE }}\n-mongo uri: ${{ env.MONGO_URI }}\n-mongo username: ${{ env.MONGO_USERNAME }}\n-mongo pwd: ${{ secrets.MONGO_PASSWORD }}\n"
-    #   - name: Set App Ingress Host URL
-    #     id: set-ingress-host-address
-    #     run: |
-    #       echo "APP_INGRESS_URL=var_for_host_${{ vars.NAMESPACE }}" >> "$GITHUB_OUTPUT"
-
-    # outputs:
-    #   APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
 
   # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
   prod-integration-testing:

@@ -1,7 +1,12 @@
-name: Deployment - Reusable WF_1
+name: Deployment - Reusable WF_2
 
 on:
   workflow_call:
+    secrets:
+      k8s-config:
+        required: true
+      mongo-db-pwd:
+        required: true
     
 jobs:
   reuse-deploy:
