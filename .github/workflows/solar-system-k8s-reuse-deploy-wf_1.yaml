@@ -1,0 +1,58 @@
+name: Deployment - Reusable WF
+
+on:
+  workflow_call:
+    
+
+jobs:
+  reuse-deploy:
+
+    runs-on: ubuntu-latest
+    environment: 
+      name: development
+      # if the job deploy somethin the URL is the endpoint of the application
+      url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install kubectl CLI
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.32.0'
+
+      - name: Print kubeconfig secret
+        run: |
+          echo "Print kubeconfig secret --->${{ secrets.KUBECONFIG }}<--- "
+
+      - name: Save Nginx Ingress IP
+        id: ingress
+        run: |
+          echo "INGRESS_IP=ingres.url" >> $GITHUB_ENV
+
+      - name: Replace tokens in manifests
+        uses: cschleiden/replace-tokens@v1
+        with:
+          tokenPrefix: '_{_'
+          tokenSuffix: '_}_'
+          files: kubernetes/development/*.yaml   ### apply in all yaml files!
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}   ### define the proper vars!
+          REPLICAS: ${{ vars.REPLICAS }}
+          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+          INGRESS_IP: ${{ env.INGRESS_IP }}   ### look at how we define this var above!
+
+      - name: Verify replaced manifests
+        run: cat kubernetes/development/*.yaml
+
+      - name: Create MongoDB Secret
+        run: |
+          echo "-namespace: ${{ vars.NAMESPACE }}\n-mongo uri: ${{ env.MONGO_URI }}\n-mongo username: ${{ env.MONGO_USERNAME }}\n-mongo pwd: ${{ secrets.MONGO_PASSWORD }}\n"
+      
+      - name: Set App Ingress Host URL
+        id: set-ingress-host-address
+        run: |
+          echo "APP_INGRESS_URL=var_for_host_${{ vars.NAMESPACE }}" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}

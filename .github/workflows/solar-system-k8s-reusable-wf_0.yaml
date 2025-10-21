@@ -1,3 +1,6 @@
+# this WS comes from solar-system-k8s-reusable-wf dirty-copy.yaml
+# It's the same file but without comments.
+
 name: Deployment in k8s Reusable WF
 
 on:

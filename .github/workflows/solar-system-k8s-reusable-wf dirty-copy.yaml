@@ -1,3 +1,7 @@
+# This is the WF from where we staart our journey with reusaable WF.
+# The file collects all the steps we saw in one single WF file.
+# Parts of the code have been commented to simplify the WF executione with the purpose to save time/runner-usge
+
 name: Deployment in k8s Reusable WF
 
 on:
