@@ -27,7 +27,7 @@ jobs:
 
       - name: Print kubeconfig secret
         run: |
-          echo "Print kubeconfig secret --->${{ secrets.KUBECONFIG }}<--- "
+          echo "Print kubeconfig secret --->${{ secrets.k8s-config }}<--- "
 
       - name: Save Nginx Ingress IP
         id: ingress
@@ -51,7 +51,7 @@ jobs:
 
       - name: Create MongoDB Secret
         run: |
-          echo "-namespace: ${{ vars.NAMESPACE }}\n-mongo uri: ${{ env.MONGO_URI }}\n-mongo username: ${{ env.MONGO_USERNAME }}\n-mongo pwd: ${{ secrets.MONGO_PASSWORD }}\n"
+          echo "-namespace: ${{ vars.NAMESPACE }}\n-mongo uri: ${{ env.MONGO_URI }}\n-mongo username: ${{ env.MONGO_USERNAME }}\n-mongo pwd: ${{ secrets.mongo-db-pwd }}\n"
       
       - name: Set App Ingress Host URL
         id: set-ingress-host-address
