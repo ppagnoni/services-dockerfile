@@ -161,6 +161,8 @@ jobs:
     needs: containerization   ### this steps depends on containerization
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/solar-system-k8s-reuse-deploy-wf_2.yaml
+      k8s-config: ${{ secrets.KUBECONFIG }}
+      mongo-db-pwd: ${{ secrets.MONGO_PASSWORD }}
 
   # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
   prod-integration-testing:
