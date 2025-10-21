@@ -2,7 +2,7 @@
 # The file collects all the steps we saw in one single WF file.
 # Parts of the code have been commented to simplify the WF executione with the purpose to save time/runner-usge
 
-name: Deployment in k8s Reusable WF
+name: Deployment in k8s Reusable WF_dirty_copy
 
 on:
   workflow_dispatch:

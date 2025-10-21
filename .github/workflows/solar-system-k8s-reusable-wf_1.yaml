@@ -1,6 +1,6 @@
 # This file is relaated to the lessons "Step 1 - Configure new Reusable Workflow"
 
-name: Deployment in k8s Reusable WF
+name: Deployment in k8s Reusable WF_1
 
 on:
   workflow_dispatch:
@@ -209,7 +209,7 @@ jobs:
     needs: containerization   ### this steps depends on containerization
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/solar-system-k8s-reuse-deploy-wf_1.yaml
-    
+
     ### move the job to reuse-deploy-wf_1.yaml
     # runs-on: ubuntu-latest
     # environment: 
