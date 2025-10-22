@@ -74,6 +74,9 @@ jobs:
         MONGO_USERNAME: ${{ vars.MONGO_USERNAME}}
         MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
       run: |
+        export MONGO_URI=${{ vars.MONGO_URI }}
+        export MONGO_USERNAME=${{ vars.MONGO_USERNAME}}
+        export MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}
         echo $MONGO_URI
         echo $MONGO_USERNAME
         echo $MONGO_PASSWORD
