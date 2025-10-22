@@ -169,7 +169,7 @@ jobs:
       mongo-db-pwd: ${{ secrets.MONGO_PASSWORD }}
     with:
       mongo-uri: ${{ vars.MONGO_URI }}
-      mngo-username: ${{ vars.MONGO_USERNAME}}
+      mongo-username: ${{ vars.MONGO_USERNAME}}
 
   # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
   prod-integration-testing:
