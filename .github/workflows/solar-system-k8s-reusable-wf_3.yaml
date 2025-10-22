@@ -72,7 +72,11 @@ jobs:
       env:
         MONGO_URI: ${{ vars.MONGO_URI }}
         MONGO_USERNAME: ${{ vars.MONGO_USERNAME}}
+        MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
       run: |
+        echo $MONGO_URI
+        echo $MONGO_USERNAME
+        echo $MONGO_PASSWORD
         npm test
 
   containerization:
