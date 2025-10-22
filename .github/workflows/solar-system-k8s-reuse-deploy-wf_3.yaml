@@ -13,14 +13,29 @@ on:
         type: string
       mongo-username:
         required: true
-        type: string        
+        type: string
+      kubectl-version:
+        description: kubectl CLI version
+        required: false
+        default: v1.32.0
+        type: string
+      k8s-manifest-dir:
+        description: Path to Kubernetes manifests
+        required: true
+        default: kubernetes/
+        type: string
+      environment:
+        description: Deployment environment name
+        required: true
+        default: dev
+        type: string             
     
 jobs:
   reuse-deploy:
     ### down below the code I've copied/pasted!!! (*a*)/(*b*)
     runs-on: ubuntu-latest
     environment: 
-      name: development
+      name: ${{ inputs.environment }}
       # if the job deploy somethin the URL is the endpoint of the application
       url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_URL }}
     steps:
@@ -30,7 +45,8 @@ jobs:
       - name: Install kubectl CLI
         uses: azure/setup-kubectl@v3
         with:
-          version: 'v1.32.0'
+          # version: 'v1.32.0'
+          version: ${{ inputs.kubectl-version }}
 
       - name: Print kubeconfig secret
         run: |
@@ -46,7 +62,7 @@ jobs:
         with:
           tokenPrefix: '_{_'
           tokenSuffix: '_}_'
-          files: kubernetes/development/*.yaml   ### apply in all yaml files!
+          files: ${{ inputs.k8s-manifest-dir}}/*.yaml   ### apply in all yaml files!
         env:
           NAMESPACE: ${{ vars.NAMESPACE }}   ### define the proper vars!
           REPLICAS: ${{ vars.REPLICAS }}
@@ -54,7 +70,7 @@ jobs:
           INGRESS_IP: ${{ env.INGRESS_IP }}   ### look at how we define this var above!
 
       - name: Verify replaced manifests
-        run: cat kubernetes/development/*.yaml
+        run: cat ${{ inputs.k8s-manifest-dir}}/*.yaml
 
       - name: Create MongoDB Secret
         run: |

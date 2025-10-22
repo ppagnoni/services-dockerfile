@@ -149,6 +149,9 @@ jobs:
     with:
       mongo-uri: ${{ vars.MONGO_URI }}
       mongo-username: ${{ vars.MONGO_USERNAME}}
+      kubectl-version: v1.32.0    # default value v1.32.0
+      environment: development
+      k8s-manifest-dir: kubernetes/development/      
     
   # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
   dev-integration-testing:
@@ -174,6 +177,9 @@ jobs:
     with:
       mongo-uri: ${{ vars.MONGO_URI }}
       mongo-username: ${{ vars.MONGO_USERNAME}}
+      kubectl-version: v1.32.0    # default value v1.32.0
+      environment: production
+      k8s-manifest-dir: kubernetes/production/
 
   # we change the name compared the "solar-system-k8s-deployment-dev.yaml" file
   prod-integration-testing:
