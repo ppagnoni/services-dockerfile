@@ -2,10 +2,10 @@ name: Deployment in k8s Reusable WF
 
 on:
   workflow_dispatch:
-  push:
-     branches:
-       - master
-       # - feature/*
+  # push:
+  #    branches:
+  #      - master
+  #      # - feature/*
 
 env:
   MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
